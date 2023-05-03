@@ -1,0 +1,1 @@
+# RGB555toCHARINFO
