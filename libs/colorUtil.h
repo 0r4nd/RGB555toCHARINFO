@@ -30,6 +30,13 @@ uint32_t rgba16_css(const char *name);
 int32_t rgba32_lerp(int32_t col1, int32_t col2, int32_t t);
 int32_t rgba16_lerp(int32_t col1, int32_t col2, int32_t t);
 
+uint32_t rgb555_clamp(int r, int g, int b);
+uint32_t rgb565_clamp(int r, int g, int b);
+uint32_t rgba16_clamp(int r, int g, int b, int a);
+uint32_t rgb888_clamp(int r, int g, int b);
+uint32_t rgba32_clamp(int r, int g, int b, int a);
+
+
 float color_diffLAB(uint32_t color1, uint32_t color2);
 float color_diffXYZ(uint32_t color1, uint32_t color2);
 
