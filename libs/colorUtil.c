@@ -2,8 +2,8 @@
 #include <math.h>
 #include "colorUtil.h"
 
-
 #include "../RGB555toCHARINFO.c"
+
 
 
 static const char *css_colors[140*2] = {
@@ -286,6 +286,64 @@ int32_t rgba16_lerp(int32_t col1, int32_t col2, int32_t t)
   return r1 | (g1<<4) | (b1<<8) | (a1<<12);
 }
 
+
+
+uint32_t rgb555_clamp(int r, int g, int b)
+{
+    if ((r | g | b) & ~0x1f) {
+        r = (r & ~0x1f)? ((~r)>>31)&0x1f : r;
+        g = (g & ~0x1f)? ((~g)>>31)&0x1f : g;
+        b = (b & ~0x1f)? ((~b)>>31)&0x1f : b;
+    }
+    return r | g<<5 | b<<10;
+}
+
+uint32_t rgb565_clamp(int r, int g, int b)
+{
+    if ((r<<1 | g | b<<1) & ~0x3f) {
+        r = (r & ~0x1f)? ((~r)>>31)&0x1f : r;
+        g = (g & ~0x3f)? ((~g)>>31)&0x3f : g;
+        b = (b & ~0x1f)? ((~b)>>31)&0x1f : b;
+    }
+    return r | g<<5 | b<<11;
+}
+
+// rgba4444
+uint32_t rgba16_clamp(int r, int g, int b, int a)
+{
+    if ((r | g | b | a) & ~0xf) {
+        r = (r & ~0xf)? ((~r)>>31)&0xf : r;
+        g = (g & ~0xf)? ((~g)>>31)&0xf : g;
+        b = (b & ~0xf)? ((~b)>>31)&0xf : b;
+        a = (a & ~0xf)? ((~a)>>31)&0xf : a;
+    }
+    return r | g<<4 | b<<8 | a<<12;
+}
+
+uint32_t rgb888_clamp(int r, int g, int b)
+{
+    if ((r | g | b) & ~0xff) {
+        r = (r & ~0xff)? ((~r)>>31)&0xff : r;
+        g = (g & ~0xff)? ((~g)>>31)&0xff : g;
+        b = (b & ~0xff)? ((~b)>>31)&0xff : b;
+    }
+    return r | g<<8 | b<<16;
+}
+
+uint32_t rgba32_clamp(int r, int g, int b, int a)
+{
+    if ((r | g | b | a) & ~0xff) {
+        r = (r & ~0xff)? ((~r)>>31)&0xff : r;
+        g = (g & ~0xff)? ((~g)>>31)&0xff : g;
+        b = (b & ~0xff)? ((~b)>>31)&0xff : b;
+        a = (a & ~0xff)? ((~a)>>31)&0xff : a;
+    }
+    return r | g<<8 | b<<16 | a<<24;
+}
+
+
+
+
 /******************************************************************************/
 
 /**
@@ -371,8 +429,8 @@ float color_diffLAB(uint32_t color1, uint32_t color2)
   r2 = (color2)&0xff;
   g2 = (color2>>8)&0xff;
   b2 = (color2>>16)&0xff;
-  color_rgb2lab(r1,g1,b1, (int*)lab1);
-  color_rgb2lab(r2,g2,b2, (int*)lab2);
+  color_rgb2lab(r1,g1,b1, lab1);
+  color_rgb2lab(r2,g2,b2, lab2);
 
   lab2[0] -= lab1[0];
   lab2[1] -= lab1[1];
@@ -428,8 +486,7 @@ void color_split(int col,
 void color_RGB888toYUV888(int r, int g, int b,
                           float *out_y, float *out_u, float *out_v)
 {
-  //float Y,U,V;
-  float R,G,B;
+  float Y,U,V, R,G,B;
 
   R = (float)r;
   G = (float)g;
@@ -587,6 +644,24 @@ int32_t color_lerpYUV(int32_t col1, int32_t col2, float t)
 
 
 uint32_t aCGA_COL[16] = {
+/*  0x000000,
+  0x800000,
+  0x008000,
+  0x808000,
+  0x000080,
+  0x800080,
+  0x008080,
+  0xc0c0c0,
+
+  0x808080,
+  0xff0000,
+  0x00ff00,
+  0xffff00,
+  0x0000ff,
+  0xff00ff,
+  0x00ffff,
+  0xffffff,*/
+
   RGBA32(0,0,0, 255),
   RGBA32(0,0,127, 255),
   RGBA32(0,127,0, 255),
@@ -621,12 +696,12 @@ int colorArray_intensity(int col1, int col2,
   g2 = (float) ((col2>>8)&0xff);
   b2 = (float) ((col2>>16)&0xff);
 
-  /* intensité totale de la couleur1 */
+  /* intensitÃ© totale de la couleur1 */
   r1 = (r1 * col1_cnt);
   g1 = (g1 * col1_cnt);
   b1 = (b1 * col1_cnt);
 
-  /* intensité totale de la couleur2 */
+  /* intensitÃ© totale de la couleur2 */
   r2 = (r2 * col2_cnt);
   g2 = (g2 * col2_cnt);
   b2 = (b2 * col2_cnt);
@@ -650,16 +725,17 @@ int colorArray_intensity(int col1, int col2,
 }
 
 
+
 /**
- * char list: http://www.benryves.com/tutorials/winconsole/2
+ * http://www.benryves.com/tutorials/winconsole/2
  */
 int color_toCHARINFO(uint32_t color_base, int8_t *out_ascii, uint8_t *out_color)
 {
-  int i,j;
+  int i,j,k;
   float tmp,diff = 1000000.0;
   int intensity=0, ret_intensity=0;
   uint32_t ascii=0,col1=0,col2=0;
-  //uint32_t id1=0, id2=0;
+  uint32_t id1=0, id2=0;
 
   //float (*color_diff)(uint32_t, uint32_t) = color_diffXYZ;
   float (*color_diff)(uint32_t, uint32_t) = color_diffLAB;
@@ -717,25 +793,26 @@ uint32_t color_RGB555toRGBA32(uint32_t col, uint32_t a)
 
 uint32_t color_RGB888toRGB555(uint32_t col)
 {
-  uint32_t r,g,b;
-  r = (col)&0xff;
-  g = (col>>8)&0xff;
-  b = (col>>16)&0xff;
-  r = (r * 249 + 1014) >> 11;
-  g = (g * 249 + 1014) >> 11;
-  b = (b * 249 + 1014) >> 11;
-  return r | (g<<5) | (b<<10);
+    uint32_t r,g,b;
+    r = (col)&0xff;
+    g = (col>>8)&0xff;
+    b = (col>>16)&0xff;
+    r = (r * 249 + 1014) >> 11;
+    g = (g * 249 + 1014) >> 11;
+    b = (b * 249 + 1014) >> 11;
+    return r | (g<<5) | (b<<10);
 }
 
 uint32_t color_RGBA32toRGBA16(uint32_t col)
 {
-  uint32_t r,g,b,a;
-  r = (col<< 8)&0xf000;
-  g = (col>> 4)&0x0f00;
-  b = (col>>16)&0x00f0;
-  a = (col>>28)&0x000f;
-  return r | g | b | a;
+    uint32_t r,g,b,a;
+    r = (col<< 8)&0xf000;
+    g = (col>> 4)&0x0f00;
+    b = (col>>16)&0x00f0;
+    a = (col>>28)&0x000f;
+    return r | g | b | a;
 }
+
 
 
 CHAR_INFO charinfo_fromRGB555(uint32_t col)
@@ -749,4 +826,3 @@ CHAR_INFO charinfo_fromRGB888(uint32_t col)
   col = color_RGB888toRGB555(col);
   return aRGB555toCHARINFO_LUT[col];
 }
-
