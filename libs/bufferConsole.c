@@ -8,6 +8,7 @@
 CHAR_INFO aCHARINFO_LUT[32*32*32];
 
 
+
 /******************************************************************************/
 
 /**
@@ -79,7 +80,7 @@ void bufferConsole_delete(bufferConsole_t *const self)
 }
 
 
-/* ici des fonctions relatives au traitement des niblles non terminées */
+/* ici des fonctions relatives au traitement des niblles non terminÃ©es */
 #if 0
 
 /******************************************************************************/
@@ -101,8 +102,8 @@ void bufferConsole_delete(bufferConsole_t *const self)
  *         top :    '\xDF'
  *
  * @todo - ne fonctionne pas :
- *       il faut trouver un moyen d'avoir deux nibbles de couleur différente
- *       sur le même char.
+ *       il faut trouver un moyen d'avoir deux nibbles de couleur diffÃ©rente
+ *       sur le mÃªme char.
  */
 void bufferConsole_fillPlainQuad_nibble(bufferConsole_t *const self, char color, int depth,
                                              int x, int y, int width, int height)
@@ -188,12 +189,12 @@ static void bufferConsole_fillPix2_nibble(bufferConsole_t *const self, uint8_t c
 
 /**
  * @todo -
- * L'affichage avec des nibbles pose un problème :
- * On ne peut pas afficher deux nibbles verticaux (utilisant le même char) tout
- * en ayant une couleur spécifique pour chaqun.
+ * L'affichage avec des nibbles pose un problÃ¨me :
+ * On ne peut pas afficher deux nibbles verticaux (utilisant le mÃªme char) tout
+ * en ayant une couleur spÃ©cifique pour chaqun.
  * J'ai vu des screen de personnes qui - a prioris - avaient des solutions pour
- * ce problème, sans pour autant avoir exposé leur procédé.
- * L'intéret étant de diviser par 2 la hauteur de l'affichage.
+ * ce problÃ¨me, sans pour autant avoir exposÃ© leur procÃ©dÃ©.
+ * L'intÃ©ret Ã©tant de diviser par 2 la hauteur de l'affichage.
  *
  * http://stackoverflow.com/questions/12378642/c-pixels-in-console-window
  *
@@ -203,9 +204,9 @@ static void bufferConsole_fillPix2_nibble(bufferConsole_t *const self, uint8_t c
  * '\xDF' = U+2580 UPPER HALF BLOCK
  *
  * L'affichage en pixel est beaucoup trop "tricky" et bas niveau, il y a peu de
- * chances que ça fonctionne sur toutes les plateformes.
+ * chances que Ã§a fonctionne sur toutes les plateformes.
  *
- * à suivre donc.
+ * Ã  suivre donc.
  */
 void bufferConsole_fillTexQuad_nibble(bufferConsole_t *const self, uint8_t *color, int depth,
                                       int x, int y, int width, int height)
@@ -288,6 +289,8 @@ static void rgb32_fillHlineFlat(uint32_t *pdst, uint32_t color, int opacity,
 
 }
 
+
+
 static void rgb32_fillHlineFlatSub(uint32_t *pdst, int color_sub, int x, int len)
 {
   uint32_t dst;
@@ -302,18 +305,7 @@ static void rgb32_fillHlineFlatSub(uint32_t *pdst, int color_sub, int x, int len
     r1 = (dst)&0xff;
     g1 = (dst>>8)&0xff;
     b1 = (dst>>16)&0xff;
-
-    r1 -= r2;
-    if (r1 < 0) r1 = 0;
-    else if (r1 > 255) r1 = 255;
-    g1 -= g2;
-    if (g1 < 0) g1 = 0;
-    else if (g1 > 255) g1 = 255;
-    b1 -= b2;
-    if (b1 < 0) b1 = 0;
-    else if (b1 > 255) b1 = 255;
-
-    pdst[x>>12] = r1 | g1<<8 | b1<<16;
+    pdst[x>>12] = rgb888_clamp(r1-r2, g1-g2, b1-b2);
     x += 1<<12 ;
   }
 
@@ -360,8 +352,9 @@ static void rgb32_fillScaleHlineTex(uint32_t *pdst, uint32_t *psrc, int opacity,
     if (a > 0) {
 
       /* with alpha */
-      if (a >= 255) pdst[x>>12] = src;
-      else { /* without alpha */
+      if (a >= 255) {
+        pdst[x>>12] = src;
+      } else { /* without alpha */
         dst = pdst[x>>12];
         r1 = (dst)&0xff;
         g1 = (dst>>8)&0xff;
@@ -408,27 +401,11 @@ static void rgb32_fillScaleHlineTexSub(uint32_t *pdst, uint32_t *psrc, uint32_t 
     a = (src>>24)&0xff;
 
     if (a > 0) {
+      r1 = (src)&0xff;
+      g1 = (src>>8)&0xff;
+      b1 = (src>>16)&0xff;
 
-      /* with alpha */
-      if (a >= 255) {
-        //pdst[x>>12] = src;
-        r1 = (src)&0xff;
-        g1 = (src>>8)&0xff;
-        b1 = (src>>16)&0xff;
-
-        r1 -= r2;
-        if (r1 < 0) r1 = 0;
-        else if (r1 > 255) r1 = 255;
-        g1 -= g2;
-        if (g1 < 0) g1 = 0;
-        else if (g1 > 255) g1 = 255;
-        b1 -= b2;
-        if (b1 < 0) b1 = 0;
-        else if (b1 > 255) b1 = 255;
-        pdst[x>>12] = r1 | g1<<8 | b1<<16;
-
-      } else { /* without alpha */
-
+      if (a < 255) {
         r1 = (src)&0xff;
         g1 = (src>>8)&0xff;
         b1 = (src>>16)&0xff;
@@ -441,22 +418,9 @@ static void rgb32_fillScaleHlineTexSub(uint32_t *pdst, uint32_t *psrc, uint32_t 
         r1 += (rd-r1)*a>>8;
         g1 += (gd-g1)*a>>8;
         b1 += (bd-b1)*a>>8;
-
-        r1 -= r2;
-        if (r1 < 0) r1 = 0;
-        else if (r1 > 255) r1 = 255;
-        g1 -= g2;
-        if (g1 < 0) g1 = 0;
-        else if (g1 > 255) g1 = 255;
-        b1 -= b2;
-        if (b1 < 0) b1 = 0;
-        else if (b1 > 255) b1 = 255;
-
-        pdst[x>>12] = r1 | g1<<8 | b1<<16;
       }
-
+      pdst[x>>12] = rgb888_clamp(r1-r2,g1-g2,b1-b2);
     }
-
     u += du ;
     x += 1<<12 ;
   }
@@ -485,22 +449,22 @@ static void rgb32_fillScaleHlineTexSub(uint32_t *pdst, uint32_t *psrc, uint32_t 
  *
  * @note - Pistes d'optimisation :
  *
- *  - Si on décidait par convention que la texture source possède toujours une
- *    taille puissance de 2. On pourrait remplacer l'opérateur modulo par un
- *    masque(&), et la multiplication par un simple décalage (<<)
+ *  - Si on dÃ©cidait par convention que la texture source possÃ¨de toujours une
+ *    taille puissance de 2. On pourrait remplacer l'opÃ©rateur modulo par un
+ *    masque(&), et la multiplication par un simple dÃ©calage (<<)
  *
- *  - 4 pixels sont lu pour chaque pixel affiché, nous pourrions en
+ *  - 4 pixels sont lu pour chaque pixel affichÃ©, nous pourrions en
  *    lire seulement 2 ou 1 selon les cas.
  *
- *  - Nous pourrions découper le traitement en sous fonctions pour gérer
+ *  - Nous pourrions dÃ©couper le traitement en sous fonctions pour gÃ©rer
  *    beaucoup plus de cas.
- *    Les cas spécifiques seraient liés au mix des composantes
+ *    Les cas spÃ©cifiques seraient liÃ©s au mix des composantes
  *    src-src puis src_res-dst
  *    par exemple : mix: 50/50 = (r1/2)        + (r2/2)  ou  (r1+r2)/2
  *                  mix: 75/25 = (r1/2)+(r1/4) + (r2/4)
- *    Sans parler des spécificités sur les bords de la texture (clamp, repeat...)
- *    L'implémentation idéale consisterait à découper le tout en une
- *    série de fonctions spécialisés. (il y en aurait beaucoup)
+ *    Sans parler des spÃ©cificitÃ©s sur les bords de la texture (clamp, repeat...)
+ *    L'implÃ©mentation idÃ©ale consisterait Ã  dÃ©couper le tout en une
+ *    sÃ©rie de fonctions spÃ©cialisÃ©s. (il y en aurait beaucoup)
  */
 static void rgb32_fillScaleHlineTexBlin(uint32_t *pdst, uint32_t *psrc, int opacity,
                                         int x, int y, int u, int du, int v, int dv,
@@ -1000,8 +964,9 @@ void bufferConsole_drawPixel(bufferConsole_t *const self,
   if (a <= 0) return;
 
   /* without alpha */
-  if (a >= 255) *pdst = col;
-  else { /* with alpha */
+  if (a >= 255) {
+    *pdst = col;
+  } else { /* with alpha */
     dst = *pdst;
     rd = (dst)&0xff;
     gd = (dst>>8)&0xff;
@@ -1072,8 +1037,9 @@ void bufferConsole_drawWuPixel(bufferConsole_t *const self,
       a = (255 - xmod) * (255 - ymod) >> 8;
       a = a*ao>>8;
 
-      if (a >= 255) *pdst = col;
-      else if (a > 0) {
+      if (a >= 255) {
+        *pdst = col;
+      } else if (a > 0) {
         b1 = *pdst;
         r1 = (b1) & 0xff;
         g1 = (b1 >> 8) & 0xff;
@@ -1090,8 +1056,9 @@ void bufferConsole_drawWuPixel(bufferConsole_t *const self,
       a = xmod * (255 - ymod) >> 8;
       a = a*ao>>8;
 
-      if (a >= 255) pdst[1] = col;
-      else if (a > 0) {
+      if (a >= 255) {
+        pdst[1] = col;
+      } else if (a > 0) {
         b1 = pdst[1];
         r1 = (b1) & 0xff;
         g1 = (b1 >> 8) & 0xff;
@@ -1112,8 +1079,9 @@ void bufferConsole_drawWuPixel(bufferConsole_t *const self,
     a  = (255 - xmod) * ymod >> 8;
     a = a * ao >> 8;
 
-    if (a >= 255) pdst[dstwidth] = col;
-    else if (a > 0) {
+    if (a >= 255) {
+      pdst[dstwidth] = col;
+    } else if (a > 0) {
       b1 = pdst[dstwidth];
       r1 = (b1) & 0xff;
       g1 = (b1 >> 8) & 0xff;
@@ -1130,8 +1098,9 @@ void bufferConsole_drawWuPixel(bufferConsole_t *const self,
     a = xmod * ymod >> 8;
     a = a * ao >> 8;
 
-    if (a >= 255) pdst[dstwidth + 1] = col;
-    else if (a > 0) {
+    if (a >= 255) {
+      pdst[dstwidth + 1] = col;
+    } else if (a > 0) {
       b1 = pdst[dstwidth + 1];
       r1 = (b1) & 0xff;
       g1 = (b1 >> 8) & 0xff;
@@ -1244,7 +1213,7 @@ void bufferConsole_fillColArrQuad(bufferConsole_t *const self, uint8_t *tex,
  * @param y2   - y second position
  * @return -
  *
- * @note - pas utilisé
+ * @note - pas utilisÃ©
  */
  #if 0
 void bufferConsole_fillLine(bufferConsole_t *const self, char tex, uint8_t col,
@@ -1324,7 +1293,7 @@ void charinfo_genPixTable(CHAR_INFO out[32*32*32])
         tmp->Attributes = 0;
         color_toCHARINFO(RGBA32(x*8,y*8,z*8, 255),
                          (int8_t*)&tmp->Char.AsciiChar, (uint8_t*)&tmp->Attributes);
-        file_debug("{{0x%X},0x%02.2X}%s",
+        file_debug("{0x%X,0x%02.2X}%s",
                    (uint8_t)tmp->Char.AsciiChar, tmp->Attributes, ((++i)%8)?",":",\n  ");
       }
   file_debug("};\n");
