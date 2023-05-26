@@ -8,7 +8,7 @@
 #include "libs/colorUtil.h"
 #include "libs/console.h"
 
-#include "cat.rgb555.c"
+#include "assets/cat.rgb555.txt"
 
 
 // change this to 1 or 0
